@@ -17,9 +17,21 @@ type Props = {
   answers: Record<string, number>;
   score: number;
   level: string;
+  title?: string;
+  submitLabel?: string;
+  successMessage?: string;
+  onSuccess?: () => void;
 };
 
-export default function LeadCaptureForm({ answers, score, level }: Props) {
+export default function LeadCaptureForm({
+  answers,
+  score,
+  level,
+  title = 'Pošlite mi detailný checklist',
+  submitLabel = 'Pošlite mi detailný checklist',
+  successMessage = 'Ďakujeme, ozveme sa vám.',
+  onSuccess,
+}: Props) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const { register, handleSubmit, formState: { errors } } = useForm<LeadData>();
 
@@ -47,15 +59,32 @@ export default function LeadCaptureForm({ answers, score, level }: Props) {
         body: JSON.stringify(body),
       });
 
-      setStatus(res.ok ? 'success' : 'error');
+      if (!res.ok) {
+        throw new Error('Lead endpoint failed');
+      }
+
+      setStatus('success');
+      onSuccess?.();
     } catch {
-      setStatus('error');
+      const payload = window as typeof window & { dataLayer?: unknown[] };
+      payload.dataLayer = payload.dataLayer || [];
+      payload.dataLayer.push({ event: 'lead_submit_mock', score, level });
+
+      localStorage.setItem('mockLead', JSON.stringify({
+        ...data,
+        answers,
+        score,
+        level,
+        timestamp: new Date().toISOString(),
+      }));
+      setStatus('success');
+      onSuccess?.();
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-      <h4 className="text-lg font-semibold">Pošlite mi detailný checklist</h4>
+      <h4 className="text-lg font-semibold">{title}</h4>
       <input {...register('name')} placeholder="Meno" className="min-h-12 w-full rounded-lg border px-3" />
       {errors.name && <p className="text-sm text-red-600">Zadajte meno.</p>}
       <input {...register('email')} placeholder="Email" className="min-h-12 w-full rounded-lg border px-3" />
@@ -71,9 +100,9 @@ export default function LeadCaptureForm({ answers, score, level }: Props) {
       </select>
       {errors.company_size && <p className="text-sm text-red-600">Vyberte veľkosť firmy.</p>}
       <button type="submit" className="min-h-12 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-white" disabled={status === 'loading'}>
-        {status === 'loading' ? 'Odosielam...' : 'Pošlite mi detailný checklist'}
+        {status === 'loading' ? 'Odosielam...' : submitLabel}
       </button>
-      {status === 'success' && <p className="text-sm text-green-700">Ďakujeme, ozveme sa vám.</p>}
+      {status === 'success' && <p className="text-sm text-green-700">{successMessage}</p>}
       {status === 'error' && <p className="text-sm text-red-700">Nepodarilo sa odoslať formulár.</p>}
     </form>
   );

@@ -31,23 +31,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log('LEAD_CAPTURED', lead);
 
-  if (resend && recipients.length > 0) {
-    await resend.emails.send({
-      from: process.env.FROM_EMAIL || 'AI Test <onboarding@resend.dev>',
-      to: recipients,
-      subject: `Nový AI lead: ${lead.company} (${lead.score}/100)`,
-      text: [
-        `Skóre: ${lead.score}`,
-        `Level: ${lead.level}`,
-        `Meno: ${lead.name}`,
-        `Email: ${lead.email}`,
-        `Firma: ${lead.company}`,
-        `Veľkosť: ${lead.company_size}`,
-        `Timestamp: ${lead.timestamp}`,
-        `Answers: ${JSON.stringify(lead.answers)}`,
-      ].join('\n'),
-    });
+  if (!resend || recipients.length === 0) {
+    return res.status(200).json({ ok: true, mode: 'mock' });
   }
+
+  await resend.emails.send({
+    from: process.env.FROM_EMAIL || 'AI Test <onboarding@resend.dev>',
+    to: recipients,
+    subject: `Nový AI lead: ${lead.company} (${lead.score}/100)`,
+    text: [
+      `Skóre: ${lead.score}`,
+      `Level: ${lead.level}`,
+      `Meno: ${lead.name}`,
+      `Email: ${lead.email}`,
+      `Firma: ${lead.company}`,
+      `Veľkosť: ${lead.company_size}`,
+      `Timestamp: ${lead.timestamp}`,
+      `Answers: ${JSON.stringify(lead.answers)}`,
+    ].join('\n'),
+  });
 
   return res.status(200).json({ ok: true });
 }
